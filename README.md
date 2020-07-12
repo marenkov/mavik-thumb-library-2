@@ -1,2 +1,2 @@
-# mavik-thumb-library-2
-Library for creating thumbnails. Version 2.
+# mavik Thumbnails
+Library for creating thumbnails
