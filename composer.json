@@ -1,0 +1,22 @@
+{
+    "name": "mavik/thumbnails",
+    "type": "library",
+    "license": "GNU General Public License version 2 or later",
+    "description": "PHP Library for creating thumbnails",
+    "keywords": ["image", "photo", "thumbnail", "thumb", "resize"],
+    "require": {
+        "php": ">=7.2.0"
+    },    
+    "authors": [
+        {
+            "name": "Vitalii Marenkov",
+            "email": "admin@mavik.com.ua"
+        }
+    ],    
+    "autoload": {
+        "psr-4": {
+            "Mavik\\Thumbnails\\": "src/",
+            "Mavik\\Thumbnails\\Tests\\": "tests/"
+        }
+    }
+}
