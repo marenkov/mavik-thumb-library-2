@@ -35,6 +35,7 @@ namespace Mavik\Thumbnails;
 class ThumbGenerator {
 
     const PARAMS_DEFAULT = [
+        'baseUrl'          => '',
         'thumbDir'         => 'images/thumbnails',
         'subDirs'          => true,
         'copyRemote'       => false,
@@ -46,8 +47,9 @@ class ThumbGenerator {
         'graphicLibrary'   => 'gd2',
         'ratios'           => [1],
         'fileSystemParams' => [
-            'dirMode'  => 0755,
-            'fileMode' => 0644,
+            'dirMode'     => 0755,
+            'fileMode'    => 0644,
+            'webRootPath' => '',
         ],
         'graphicLibraryParams'=> [
             'quality' => 90,
@@ -86,7 +88,7 @@ class ThumbGenerator {
         if ($fileSystem) {
             $this->fileSystem = $fileSystem;
         } else {
-            $this->fileSystem = new \Mavik\Thumbnails\Filesystem\Local();
+            $this->fileSystem = new \Mavik\Thumbnails\Filesystem\Local($params['fileSystemParams']);
         }
 
         $this->thumbInfoBuilder = new ThumbInfoBuilder($this->params, $this->fileSystem);
@@ -217,16 +219,16 @@ class ThumbGenerator {
             /*
              *  $src IS PATH
              */
-            $info->original->local = true;
+            $info->original->isLocal = true;
             $info->original->path = $this->pathToAbsolute($src);
             $info->original->url = $this->pathToUrl($info->original->path);
         } else {
             /*
              *  $src IS URL
              */
-            $info->original->local = $this->isUrlLocal($src);
+            $info->original->isLocal = $this->isUrlLocal($src);
 
-            if($info->original->local) {
+            if($info->original->isLocal) {
                 /*
                  * Local image
                  */
@@ -341,18 +343,18 @@ class ThumbGenerator {
 
         $suffix = "-{$this->params['resizeType']}-{$info->thumbnail->realWidth}x{$info->thumbnail->realHeight}";
 
-        $info->thumbnail->path = $this->getSafeName($info->original->path, $this->params['thumbDir'], $suffix, $info->original->local);
+        $info->thumbnail->path = $this->getSafeName($info->original->path, $this->params['thumbDir'], $suffix, $info->original->isLocal);
         $info->thumbnail->url = $this->pathToUrl($info->thumbnail->path);
-        $info->thumbnail->local = true;
+        $info->thumbnail->isLocal = true;
 
         foreach ($info->thumbnails as $ratio => &$thumbnail) {
             $dir = $this->params['thumbDir'];
             if ($ratio != 1) {
                 $dir .= "/@{$ratio}";
             }
-            $thumbnail->path = $this->getSafeName($info->original->path, $dir, $suffix, $info->original->local);
+            $thumbnail->path = $this->getSafeName($info->original->path, $dir, $suffix, $info->original->isLocal);
             $thumbnail->url = $this->pathToUrl($thumbnail->path);
-            $thumbnail->local = true;
+            $thumbnail->isLocal = true;
         }
     }
 
@@ -387,7 +389,7 @@ class ThumbGenerator {
      */
     protected function getOriginalChangeTime(MavikThumbInfo $info)
     {
-        if ($info->original->local || $this->params['copyRemote']) {
+        if ($info->original->isLocal || $this->params['copyRemote']) {
             $timestamp = filectime($info->original->path);
         } else {
             $header = get_headers($info->original->url, 1);

@@ -22,30 +22,36 @@ class ImageInfo {
     /** @var string */
     var $path = null;
 
-    /** @var int */
+    /**
+     * Visible width of image
+     *
+     * @var int */
     var $width = null;
 
-    /** @var int */
+    /**
+     * Visible height of image
+     *
+     * @var int */
     var $height = null;
-
-    /** @var int */
-    var $size = null;
-
-    var $type = null;
-
-    var $local = null;
 
     /**
      * Real width. Only for thumbnail.
-     * 
-     * @var int 
+     *
+     * @var int
      */
     var $realWidth = null;
 
     /**
      * Real height. Only for thumbnail.
-     * 
-     * @var int 
-     */    
+     *
+     * @var int
+     */
     var $realHeight = null;
+
+    var $type = null;
+
+    var $isLocal = null;
+
+    /** @var int */
+    var $fileSize = null;
 }
