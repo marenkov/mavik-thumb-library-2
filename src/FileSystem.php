@@ -15,7 +15,7 @@ namespace Mavik\Thumbnails;
  * Operations with file system
  */
 interface FileSystem {
-    public function __construct(array $params): void;
+    public function __construct(array $params);
     public function realPath(string $path): ?string;
     public function pathToUrl(string $path): string;
     public function isDirectory(string $path): bool;

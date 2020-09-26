@@ -11,7 +11,7 @@
 
 namespace Mavik\Thumbnails\Filesystem;
 
-use Mavik\Thumbnails\Filesystem as FileSystem;
+use Mavik\Thumbnails\FileSystem;
 use Mavik\Thumbnails\Exception\FileSystemException;
 use Mavik\Thumbnails\Exception\ConfigurationException;
 
@@ -27,7 +27,7 @@ class Local implements FileSystem
     /**
      * @throws ConfigurationException
      */
-    public function __construct(array $param) 
+    public function __construct(array $param)
     {        
         $this->params = $param;
         $this->verifyParams();
@@ -36,7 +36,7 @@ class Local implements FileSystem
     /**
      * @throws ConfigurationException
      */
-    protected function verifyParams() 
+    protected function verifyParams(): void
     {
         if (empty($this->params['webRootPath'])) {
             throw new ConfigurationException('Parameter webRootPath is not setted.');
@@ -44,7 +44,7 @@ class Local implements FileSystem
         if (!is_string($this->params['webRootPath'])) {
             throw new ConfigurationException('Parameter webRootPath must be string.');
         }
-        if (!fileExists($this->params['webRootPath']) || !is_dir($this->params['webRootPath'])) {
+        if (!file_exists($this->params['webRootPath']) || !is_dir($this->params['webRootPath'])) {
             throw new ConfigurationException('Parameter webRootPath is wrong. "' . $this->params['webRootPath'] . '" is not directory.');
         }
     }
@@ -85,7 +85,7 @@ class Local implements FileSystem
      * @param int $mode
      * @throws FileSystemException
      */
-    public function makeDirectory(string $path, int $mode) 
+    public function makeDirectory(string $path, int $mode = null): void
     {
          if (!mkdir($path, $mode, true)) {
              throw new FileSystemException(sprintf('Can\'t create directory "%s" with mode %o', $path, $mode));
@@ -98,7 +98,7 @@ class Local implements FileSystem
      * @param int $mode Permissio
      * @throws FileSystemException
      */
-    public function write(string $path, string $content, int $mode = null)
+    public function write(string $path, string $content, int $mode = null): void
     {
         if (file_put_contents($path, $content, LOCK_EX) === false) {
             throw new FileSystemException("Cannot write to file '{$path}'.");

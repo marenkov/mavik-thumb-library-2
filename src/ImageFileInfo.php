@@ -32,7 +32,7 @@ class ImageFileInfo
      *  'width'    => <width>,
      *  'height'   => <height>,
      *  'type'     => <constant IMG_XXX>,
-     *  'fileSize' => <size of file in bytes>,
+     *  'file_size' => <size of file in bytes>,
      * )
      * 
      * @param ImageInfo $info
@@ -50,10 +50,10 @@ class ImageFileInfo
             ) = $this->imageInfoFromUrl($info->url);
         }
         return [
-            'width'    => isset($imageSize[0]) ? $imageSize[0] : null,
-            'height'   => isset($imageSize[1]) ? $imageSize[1] : null,
-            'type'     => isset($imageSize[3]) ? $imageSize[3] : null,
-            'fileSize' => $fileSize,
+            'width'     => isset($imageSize[0]) ? $imageSize[0] : null,
+            'height'    => isset($imageSize[1]) ? $imageSize[1] : null,
+            'type'      => isset($imageSize[2]) ? $imageSize[2] : null,
+            'file_size' => $fileSize,
         ];
     }
     
