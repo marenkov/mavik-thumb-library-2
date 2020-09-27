@@ -8,13 +8,29 @@ class ImageFileInfoTest extends TestCase
     /**
      * @var ImageFileInfo
      */
-    protected $imageFileInfo;
-
-    protected function setUp(): void
+    static protected $imageFileInfo;
+    
+    public static function setUpBeforeClass(): void
     {
-        $this->imageFileInfo = new ImageFileInfo(new Filesystem\Local([
-            'webRootPath' => __DIR__ . '/../resources/images'
+        $webRoot = __DIR__ . '/../resources/images';
+        self::startHttpServer($webRoot);
+        sleep(1);
+        self::$imageFileInfo = new ImageFileInfo(new Filesystem\Local([
+            'webRootPath' => $webRoot,
         ]));
+    }
+    
+    protected static function startHttpServer(string $webRoot): void
+    {
+        shell_exec("php -S localhost:8888 -t {$webRoot} > /dev/null 2>&1 &");
+        $count = 0;
+        do {
+            usleep(10000);
+            $content = @file_get_contents('http://localhost:8888');           
+        } while (empty($content) && $count++ < 50);
+        if (empty($content)) {
+            throw new \Exception('HTTP server cannot be started');
+        }
     }
 
     /**
@@ -30,8 +46,7 @@ class ImageFileInfoTest extends TestCase
         } else {
             $info->url = $src;
         }
-
-        $result = $this->imageFileInfo->imageInfo($info);        
+        $result = self::$imageFileInfo->imageInfo($info);        
         $this->assertEquals($trueResult, $result);
     }
     
@@ -85,6 +100,30 @@ class ImageFileInfoTest extends TestCase
                 'height'    => 352,
                 'type'      => IMAGETYPE_WEBP,
                 'file_size' => 69622,
+            ]],
+            [false, 'http://localhost:8888/apple.jpg', [
+                'width'     => 1200,
+                'height'    => 1200,
+                'type'      => IMAGETYPE_JPEG,
+                'file_size' => 224643,    
+            ]],
+            [false, 'http://localhost:8888/beach.webp', [
+                'width'     => 730,
+                'height'    => 352,
+                'type'      => IMAGETYPE_WEBP,
+                'file_size' => 69622,
+            ]],
+            [false, 'https://upload.wikimedia.org/wikipedia/en/a/a7/Culinary_fruits_cropped_top_view.jpg', [
+                'width'     => 3224,
+                'height'    => 2145,
+                'type'      => IMAGETYPE_JPEG,
+                'file_size' => 2925171,
+            ]],
+            [false, 'https://pixnio.com/free-images/2020/01/24/2020-01-24-08-50-32-1200x800.jpg', [
+                'width'     => 1200,
+                'height'    => 800,
+                'type'      => IMAGETYPE_JPEG,
+                'file_size' => 169395,
             ]],
         ];        
     }

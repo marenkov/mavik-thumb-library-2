@@ -70,36 +70,45 @@ class ImageFileInfo
     {
         $context = stream_context_create([
             'http' => [
-                'header' => 'Range: bytes=0-32768',
+                'header' => 'Range: bytes=0-65536',
             ]
         ]);
-        $imageData = file_get_contents($url, false, $context, 0, 32768);
+        $imageData = file_get_contents($url, false, $context, 0, 65536);
+        // $http_response_header is setted by PHP in file_get_contents()
+        $httpHeaders = $this->parseHttpHeaders($http_response_header);
+        $fileSize = $this->fileSizeFromHttpHeaders($httpHeaders);
+        if (empty($fileSize)) {
+            throw new Exception\HttpException("Cannot get size of file \"{$url}\"");
+        }
+        $imageSize = getimagesizefromstring($imageData);
+        if (!isset($imageSize['0']) || !isset($imageSize['1']) || !isset($imageSize['2'])) {
+            throw new Exception\HttpException("Cannot get size of image \"{$url}\"");
+        }
         return [
-            'file_size' => $this->fileSizeFromHttpHeaders($http_response_header), // $http_response_header is setted by PHP in file_get_contents()
-            'image_size' => getimagesizefromstring($imageData),
+            'file_size' => $fileSize,
+            'image_size' => $imageSize,
         ];
     }
     
     protected function fileSizeFromHttpHeaders(array $httpHeaders = null): ?int
-    {
-        $parsedHeaders = $this->parseHttpHeaders($httpHeaders);
-        if (!isset($parsedHeaders['response_code'])) {
+    {        
+        if (!isset($httpHeaders['response_code'])) {
             return null;
         }
         if (
-            $parsedHeaders['response_code'] == 206 &&
-            isset($parsedHeaders['content-range']) &&
-            strpos($parsedHeaders['content-range'], 'bytes') !== false
+            $httpHeaders['response_code'] == 206 &&
+            isset($httpHeaders['content-range']) &&
+            strpos($httpHeaders['content-range'], 'bytes') !== false
         ) {
-            $parts = explode('/', $parsedHeaders['content-range']);
+            $parts = explode('/', $httpHeaders['content-range']);
             return (int)$parts[1] ?? null;            
         }
         if (
-            $parsedHeaders['response_code'] == 200 &&
-            isset($parsedHeaders['content-length']) &&
-            is_numeric($parsedHeaders['content-length'])
+            $httpHeaders['response_code'] == 200 &&
+            isset($httpHeaders['content-length']) &&
+            is_numeric($httpHeaders['content-length'])
         ) {
-            return (int)$parsedHeaders['content-length'];
+            return (int)$httpHeaders['content-length'];
         }
         return null;
     }
@@ -121,6 +130,7 @@ class ImageFileInfo
                 }
             }
         }
+        return $result;
     }
     
     protected function imageSizeFromFile(string $path)
