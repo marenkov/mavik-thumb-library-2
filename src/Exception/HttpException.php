@@ -2,4 +2,7 @@
 
 namespace Mavik\Thumbnails\Exception;
 
-class HttpException extends Mavik\Thumbnails\Exception {}
+/**
+ * Error while executing http-request
+ */
+class HttpException extends \Mavik\Thumbnails\Exception {}

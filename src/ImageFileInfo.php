@@ -73,7 +73,7 @@ class ImageFileInfo
                 'header' => 'Range: bytes=0-65536',
             ]
         ]);
-        $imageData = file_get_contents($url, false, $context, 0, 65536);
+        $imageData = @file_get_contents($url, false, $context, 0, 65536);
         // $http_response_header is setted by PHP in file_get_contents()
         $httpHeaders = $this->parseHttpHeaders($http_response_header);
         $fileSize = $this->fileSizeFromHttpHeaders($httpHeaders);
@@ -82,7 +82,7 @@ class ImageFileInfo
         }
         $imageSize = getimagesizefromstring($imageData);
         if (!isset($imageSize['0']) || !isset($imageSize['1']) || !isset($imageSize['2'])) {
-            throw new Exception\HttpException("Cannot get size of image \"{$url}\"");
+            throw new Exception\ImageInfoException("Cannot get size of image \"{$url}\"");
         }
         return [
             'file_size' => $fileSize,
@@ -135,7 +135,7 @@ class ImageFileInfo
     
     protected function imageSizeFromFile(string $path)
     {
-        $imagedata = $this->fileSystem->read($path, 32768);
+        $imagedata = $this->fileSystem->read($path, 65536);
         return getimagesizefromstring($imagedata);
     }
 }
