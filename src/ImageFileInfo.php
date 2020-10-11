@@ -11,6 +11,8 @@
 
 namespace Mavik\Thumbnails;
 
+use Mavik\Thumbnails\DataType\ImageInfo;
+
 /**
  * Get information about image file
  */

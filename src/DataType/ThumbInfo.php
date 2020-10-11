@@ -9,7 +9,7 @@
  * @license GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-namespace Mavik\Thumbnails;
+namespace Mavik\Thumbnails\DataType;
 
 /**
  * Information about original image and thumbnails
@@ -34,16 +34,4 @@ class ThumbInfo {
      * @var ImageInfo[]
      */    
     public $thumbnails = [];
-        
-    /**
-     * @param ImageInfo $thumbnail
-     * @return boolean
-     */
-    public function isLess(ImageInfo $thumbnail)
-    {
-        return
-            $thumbnail->realWidth && $thumbnail->realWidth < $this->original->width ||
-            $thumbnail->realHeight && $thumbnail->realHeight < $this->original->height
-        ;
-    }
 }

@@ -9,7 +9,7 @@
  * @license GNU General Public License version 2 or later; see LICENSE.txt
  */
 
-namespace Mavik\Thumbnails;
+namespace Mavik\Thumbnails\DataType;
 
 /**
  *  Information about image
