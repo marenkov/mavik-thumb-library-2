@@ -11,18 +11,19 @@
 
 namespace Mavik\Thumbnails;
 
-use Mavik\Thumbnails\DataType\ImageInfo;
+use Mavik\Thumbnails\DataType\Image;
+use Mavik\Thumbnails\DataType\ImageWithThumbnails;
 
 class ThumbInfoBuilder {
 
     /** @var array */
-    protected $params = [];
+    protected $params;
 
     /** @var FileSystem */
-    protected $fileSystem = null;
+    protected $fileSystem;
     
     /** @var ImageFileInfo */
-    protected $imageFileInfo = null;
+    protected $imageFileInfo;
 
     public function __construct(array $params, FileSystem $fileSystem) {
         $this->params        = $params;
@@ -31,39 +32,26 @@ class ThumbInfoBuilder {
     }
 
     /**
-     * @param string $imgSrc Url or path of original image
+     * @param string $originalSrc Url or path of original image
      * @param int $thumbWidth Width of thumbnail
      * @param int $thumbHeight Height of thumbnail
      * @param float[] $ratios For every value will be created particular thumbnail
-     * @return ThumbInfo
+     * @return ImageWithThumbnails
      */
-    public function make(string $imgSrc, int $thumbWidth, int $thumbHeight, array $ratios = [1]): ThumbInfo
+    public function make(string $originalSrc, int $thumbWidth, int $thumbHeight, array $ratios = [1]): ImageWithThumbnails
     {
-        $thumbInfo = new ThumbInfo();       
-        $thumbInfo->original = $this->makeOriginalImageInfo(htmlspecialchars_decode($src));
-        if (empty($thumbInfo->original->path)) {
-            return $thumbInfo;
-        }
-
-        
-        /**
-         * @todo Продолжить
-         */
-
-        
-        
-
+        $thumbInfo = new ImageWithThumbnails();
+        $thumbInfo->original = $this->makeOriginalImageInfo($originalSrc);
         foreach ($ratios as $ratio) {
-            $thumbInfo->thumbnails[] = ImageInfo();
-            /**
-             * @todo Инициализировать аттрибуты
-             */
+            $thumbInfo = new Image();
+            
+            $thumbInfo->thumbnails[] = $thumbInfo;            
         }
 
         return $thumbInfo;
     }
 
-    protected function makeOriginalImageInfo(string $src): ImageInfo
+    protected function makeOriginalImageInfo(string $src): Image
     {      
         if(!empty($path = $this->isPath($src))) {
             $originalImageInfo = $this->makeOriginalImageInfoFromPath($src);
@@ -71,23 +59,28 @@ class ThumbInfoBuilder {
             $originalImageInfo = $this->makeOriginalImageInfoFromUrl($src);
         }
         
-        $this->getOriginalImageSize($originalImageInfo);
+        list (
+            'file_size' => $originalImageInfo->fileSize,
+            'type'      => $originalImageInfo->type,
+            'height'    => $originalImageInfo->height,
+            'width'     => $originalImageInfo->width,            
+        ) = $this->imageFileInfo->imageInfo($originalImageInfo);
         
         return $originalImageInfo;
     }
 
-    protected function makeOriginalImageInfoFromPath(string $path): ImageInfo
+    protected function makeOriginalImageInfoFromPath(string $path): Image
     {
-        $imageInfo = new ImageInfo();
+        $imageInfo = new Image();
         $imageInfo->isLocal = true;
         $imageInfo->path = $path;
         $imageInfo->url = $this->fileSystem->pathToUrl($path);
         return $imageInfo;
     }
     
-    protected function makeOriginalImageInfoFromUrl(string $url): ImageInfo
+    protected function makeOriginalImageInfoFromUrl(string $url): Image
     {
-        $imageInfo = new ImageInfo();
+        $imageInfo = new Image();
         $imageInfo->isLocal = $this->isUrlLocal($url);
         if($imageInfo->isLocal) {
             // Local image
@@ -104,7 +97,8 @@ class ThumbInfoBuilder {
                 $imageInfo->url = str_replace(' ', '+', $src);
                 $imageInfo->path = $imageInfo->url;
             }
-        }        
+        }
+        return $imageInfo;
     }
 
     /**
@@ -213,7 +207,7 @@ class ThumbInfoBuilder {
         return $path;
     }
     
-    protected function getImageFileInfo(ImageInfo $imageInfo): array
+    protected function getImageFileInfo(Image $imageInfo): array
     {
         $useInfoFile = !$imageInfo->isLocal && empty($this->params['copyRemote']) && !empty($this->params['remoteDir']);
         if($useInfoFile) {
@@ -221,6 +215,6 @@ class ThumbInfoBuilder {
             if($this->fileSystem->isFile($infoFilePath)) {
                 $imageSize = unserialize($this->fileSystem->read($infoFilePath));
             }
-        
+        }        
     }
 }

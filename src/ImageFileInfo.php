@@ -11,7 +11,7 @@
 
 namespace Mavik\Thumbnails;
 
-use Mavik\Thumbnails\DataType\ImageInfo;
+use Mavik\Thumbnails\DataType\Image;
 
 /**
  * Get information about image file
@@ -20,7 +20,7 @@ class ImageFileInfo
 {
     
     /** @var Filesystem */
-    protected $fileSystem = null;
+    protected $fileSystem;
 
     public function __construct(Filesystem $fileSystem)
     {
@@ -37,10 +37,10 @@ class ImageFileInfo
      *  'file_size' => <size of file in bytes>,
      * )
      * 
-     * @param ImageInfo $info
+     * @param Image $info
      * @return array
      */
-    public function imageInfo(ImageInfo $info): array
+    public function imageInfo(Image $info): array
     {
         if ($info->isLocal) {
             $imageSize = $this->imageSizeFromFile($info->path);

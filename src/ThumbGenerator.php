@@ -11,13 +11,13 @@
 
 namespace Mavik\Thumbnails;
 
+use Mavik\Thumbnails\DataType\ImageWithThumbnails;
+
 /**
  * Generator of thumbnails
  *
- * <code>
- *
  * @todo Актуализовать описание параметров
- *
+ * <code>
  * Params {
  *   thumbDir: Directory for thumbnails
  *   subDirs: Create subdirectories in thumbnail derectory
@@ -57,29 +57,29 @@ class ThumbGenerator {
     ];
 
     /** @var array */
-    protected $params = [];
+    protected $params;
 
     /** @var ResizeType[] All used Strategies of resizing */
-    protected static $resizeStrategies = [];
+    protected static $resizeStrategies;
 
     /** @var ResizeType Current Strategy of resizing */
-    protected $resizeStrategy = null;
+    protected $resizeStrategy;
 
     /** @var GraphicLibrary */
-    protected $graphicLibrary = null;
+    protected $graphicLibrary;
 
     /** @var FileSystem */
-    protected $fileSystem = null;
+    protected $fileSystem;
 
     /** @var ThumbInfoBuilder */
-    protected $thumbInfoBuilder = null;
+    protected $thumbInfoBuilder;
 
     /** @var string Path to the directory with images */
-    protected $imagesPath = '';
+    protected $imagesPath;
 
     /**
      * @param array $params
-     * @param \Mavik\Thumbnails\FileSystem $fileSystem Object for performing file system operations
+     * @param FileSystem $fileSystem Object for executing file system operations
      */
     public function __construct(array $params = array(), FileSystem $fileSystem = null)
     {
@@ -88,7 +88,7 @@ class ThumbGenerator {
         if ($fileSystem) {
             $this->fileSystem = $fileSystem;
         } else {
-            $this->fileSystem = new \Mavik\Thumbnails\Filesystem\Local($params['fileSystemParams']);
+            $this->fileSystem = new Filesystem\Local($params['fileSystemParams']);
         }
 
         $this->thumbInfoBuilder = new ThumbInfoBuilder($this->params, $this->fileSystem);
@@ -119,25 +119,25 @@ class ThumbGenerator {
     }
 
     /**
-     * Get thumbnail, create if it doesn't exist
+     * Get thumbnails, create if thay don't exist
      *
      * @param string $src Path or URI of image
      * @param int $width Width of thumbnail
      * @param int $height Height of thumbnail
-     * @param int $sizeInPixels This parameter for correct working of default sizes
-     * @param float $ratio Ratio of real and imaged sizes
-     * @return MavikThumbInfo
+     * @param float[] $ratios Ratios of real and imaged sizes
+     * @return ImageWithThumbnails
      */
-    public function getThumb(string $src, int $width = 0, int $height = 0, bool $sizeInPixels = true, int $ratios = [1])
+    public function getThumbnails(string $src, int $width = 0, int $height = 0, int $ratios = [1]): ImageWithThumbnails
     {
-        $thumbInfo = $this->thumbInfoBuilder->make($src, $width, $height, $sizeInPixels, $ratios);
-        if(!$this->thumbExists($thumbInfo)) {
-            $this->testAllocatedMemory($thumbInfo);
-            list($x, $y, $widht, $height) = $this->resizeStrategy->getArea($thumbInfo);
-            $this->graphicLibrary->createThumbnail($info, $x, $y, $widht, $height);
-        }
-
-        return $info;
+        $thumbInfo = $this->thumbInfoBuilder->make($src, $width, $height, $ratios);
+        foreach ($thumbInfo->thumbnails as $thumbnail) {
+            if(!$this->thumbExists($thumbnail)) {
+                $this->testAllocatedMemory($thumbInfo);
+                list($x, $y, $widht, $height) = $this->resizeStrategy->getArea($thumbInfo);
+                $this->graphicLibrary->createThumbnail($thumbInfo, $x, $y, $widht, $height);
+            }            
+        }        
+        return $thumbInfo;
     }
 
     /**
@@ -171,137 +171,6 @@ class ThumbGenerator {
             self::$resizeStrategies[$type] = new $class;
         }
         $this->resizeStrategy = self::$resizeStrategies[$type];
-    }
-
-    /**
-     * Get info about original image and thumbnail
-     *
-     * @param string $src Path or url to original image
-     * @param type $width Desired width for thumbnail
-     * @param type $height Desired height for thumbnail
-     * @param float $ratio Ratio of real and imaged sizes
-     * @return MavikThumbInfo
-     */
-    protected function getThumbInfo($src, $width, $height, $sizeInPixels = true, $ratio = 1)
-    {
-        $info = new ThumbInfo();
-        $this->getOriginalPath($src, $info);
-        if (!$info->original->path) {
-            return $info;
-        }
-        $this->getOriginalSize($info);
-
-        if (
-            $sizeInPixels && ($width || $height || $this->params['defaultSize']) ||
-            $this->params['defaultSize'] == 'all'
-        ) {
-            $this->setThumbSize($info, $width, $height);
-            $this->setThumbRealSize($info, $ratio);
-            $this->setThumbPath($info, $info->isLess($info->thumbnail));
-        }
-
-        return $info;
-    }
-
-    /**
-     * Get info about URL and path of original image.
-     * And copy remote image if it's need.
-     *
-     * @param string $src
-     * @param MavikThumbInfo
-     */
-    protected function getOriginalPath($src, MavikThumbInfo $info)
-    {
-        /*
-         *  Is it URL or PATH?
-         */
-        if(file_exists($src) || file_exists(JPATH_ROOT.'/'.$src)) {
-            /*
-             *  $src IS PATH
-             */
-            $info->original->isLocal = true;
-            $info->original->path = $this->pathToAbsolute($src);
-            $info->original->url = $this->pathToUrl($info->original->path);
-        } else {
-            /*
-             *  $src IS URL
-             */
-            $info->original->isLocal = $this->isUrlLocal($src);
-
-            if($info->original->isLocal) {
-                /*
-                 * Local image
-                 */
-                $uri = JURI::getInstance($src);
-                $query = $uri->getQuery();
-                $info->original->url = $uri->getPath() . ($query ? "?{$query}" : '');
-                $info->original->path = $this->urlToPath($src);
-            } else {
-                /*
-                 * Remote image
-                 */
-                $src = $this->fullUrl($src);
-                if($this->params['copyRemote'] && $this->params['remoteDir'] ) {
-                    $this->copyRemoteFile($src, $info);
-                } else {
-                    // For remote image path is url
-                    $info->original->url = str_replace(' ', '+', $src);
-                    $info->original->path = $info->original->url;
-
-                }
-            }
-        }
-    }
-
-    /**
-     * Copy remote file to local directory
-     *
-     * @param string $src
-     * @param MavikThumbInfo $info
-     */
-    private function copyRemoteFile($src, MavikThumbInfo $info)
-    {
-        $localFile = $this->getSafeName($src, $this->params['remoteDir'], '', false);
-        if (!file_exists($localFile)) {
-            // Copy file
-            $buffer = file_get_contents($src);
-            JFile::write($localFile, $buffer);
-            unset($buffer);
-        }
-        // New url and path
-        $info->original->path = $localFile;
-        $info->original->url = $this->pathToUrl($localFile);
-    }
-
-
-    /**
-     * Set thumbanil size
-     *
-     * @param MavikThumbInfo $info
-     * @param int $width
-     * @param int $height
-     */
-    protected function setThumbSize(MavikThumbInfo $info, $width, $height)
-    {
-        if ($this->useDefaultSize($info->original, $width, $height)) {
-            if (
-                $this->params['defaultWidth'] && $info->original->width > $this->params['defaultWidth']
-            ) {
-                $width = $this->params['defaultWidth'];
-            }
-
-            if (
-                $this->params['defaultHeight'] && $info->original->height > $this->params['defaultHeight']
-            ) {
-                $height = $this->params['defaultHeight'];
-            }
-        }
-
-        // Set widht or height if it is 0
-        if ($width == 0) $width = intval($height * $info->original->width / $info->original->height);
-        if ($height == 0) $height = intval($width * $info->original->height / $info->original->width);
-
-        $this->resizeStrategy->setSize($info, $width, $height, $this->params);
     }
 
     /**

@@ -2,6 +2,7 @@
 namespace Mavik\Thumbnails;
 
 use PHPUnit\Framework\TestCase;
+use Mavik\Thumbnails\DataType\Image;
 
 class ImageFileInfoTest extends TestCase
 {
@@ -39,7 +40,7 @@ class ImageFileInfoTest extends TestCase
      */
     public function testImageInfoCorrectImages(bool $isLocal, string $src, array $trueResult)
     {
-        $info = new ImageInfo();
+        $info = new Image();
         $info->isLocal = $isLocal;
         if ($isLocal) {
             $info->path = $src;
@@ -60,7 +61,7 @@ class ImageFileInfoTest extends TestCase
     {
         $this->expectExceptionMessageMatches($messageRegExp);
         
-        $info = new ImageInfo();
+        $info = new Image();
         $info->isLocal = false;
         if ($isLocal) {
             $info->path = $src;
