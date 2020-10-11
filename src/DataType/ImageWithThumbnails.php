@@ -34,4 +34,14 @@ class ImageWithThumbnails {
      * @var Thumbnail[]
      */    
     public $thumbnails = [];
+        
+    public function allThumbnailsExist(): bool
+    {
+        foreach ($this->thumbnails as $thumbnail) {
+            if (!$thumbnail->isExist) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
