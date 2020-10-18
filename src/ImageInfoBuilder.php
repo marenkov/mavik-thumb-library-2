@@ -14,7 +14,7 @@ namespace Mavik\Thumbnails;
 use Mavik\Thumbnails\DataType\Image;
 use Mavik\Thumbnails\DataType\ImageWithThumbnails;
 
-class ThumbInfoBuilder {
+class ImageInfoBuilder {
 
     /** @var array */
     protected $params;

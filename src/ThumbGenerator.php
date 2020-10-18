@@ -34,6 +34,8 @@ use Mavik\Thumbnails\DataType\ImageWithThumbnails;
  */
 class ThumbGenerator {
 
+    const MAX_BYTES_BY_PIXEL = 4;
+    
     const PARAMS_DEFAULT = [
         'baseUrl'          => '',
         'thumbDir'         => 'images/thumbnails',
@@ -71,11 +73,8 @@ class ThumbGenerator {
     /** @var FileSystem */
     protected $fileSystem;
 
-    /** @var ThumbInfoBuilder */
+    /** @var ImageInfoBuilder */
     protected $thumbInfoBuilder;
-
-    /** @var string Path to the directory with images */
-    protected $imagesPath;
 
     /**
      * @param array $params
@@ -91,7 +90,7 @@ class ThumbGenerator {
             $this->fileSystem = new Filesystem\Local($params['fileSystemParams']);
         }
 
-        $this->thumbInfoBuilder = new ThumbInfoBuilder($this->params, $this->fileSystem);
+        $this->thumbInfoBuilder = new ImageInfoBuilder($this->params, $this->fileSystem);
     }
 
     /**
@@ -129,33 +128,43 @@ class ThumbGenerator {
      */
     public function getThumbnails(string $src, int $width = 0, int $height = 0, int $ratios = [1]): ImageWithThumbnails
     {
-        $thumbInfo = $this->thumbInfoBuilder->make($src, $width, $height, $ratios);
-        foreach ($thumbInfo->thumbnails as $thumbnail) {
-            if(!$this->thumbExists($thumbnail)) {
-                $this->testAllocatedMemory($thumbInfo);
-                list($x, $y, $widht, $height) = $this->resizeStrategy->getArea($thumbInfo);
-                $this->graphicLibrary->createThumbnail($thumbInfo, $x, $y, $widht, $height);
-            }            
-        }        
-        return $thumbInfo;
+        $imgWithThumb = $this->thumbInfoBuilder->make($src, $width, $height, $ratios);
+        if (!$imgWithThumb->allThumbnailsExist()) {
+            $this->testAllocatedMemory($imgWithThumb);
+            list($x, $y, $widht, $height) = $this->resizeStrategy->getArea($imgWithThumb);
+            $this->graphicLibrary->createThumbnail($imgWithThumb, $x, $y, $widht, $height);
+        }     
+        return $imgWithThumb;
     }
 
     /**
-     * Create directory if it doesn't exist
+     * @param string $dir
+     * @throws Exception\FileSystemException
      */
     protected function makeDirectory(string $dir)
     {        
-        $dir = $this->imagesPath . '/' . $this->params['thumbDir'];
-        if (!$this->fileSystem->exists($dir) || !$this->fileSystem->isDirectory($dir)) {
+        if (!$this->fileSystem->isDirectory($dir)) {
             $this->fileSystem->makeDirectory($dir, $this->params['fileSystemParams']['dirMode']);
             $indexFileContent = '<html><body bgcolor="#FFFFFF"></body></html>';
             $this->fileSystem->write($dir . '/index.html', $indexFileContent, $this->params['fileSystemParams']['fileMode']);
         }
     }
 
+    /**
+     * @param string $graphicLibrary
+     * @param array $graphicLibraryParams
+     * @throws \Mavik\Thumbnails\Exception
+     */
     protected function setGraphicLibrary(string $graphicLibrary, array $graphicLibraryParams = [])
     {
         $class = 'Graphiclibrary' . '\\'. ucfirst($graphicLibrary);
+        if (!class_exists($class)) {
+            throw new Exception(
+                "Configuration error: graphic library '{$graphicLibrary}' doesn't exist.",
+                Exception::CONFIGURATION
+            );
+        }
+        
         $this->graphicLibrary = new $class($graphicLibraryParams);
     }
 
@@ -163,150 +172,21 @@ class ThumbGenerator {
      * Set resize type
      *
      * @param string $type
+     * @throws \Mavik\Thumbnails\Exception
      */
     protected function setResizeType(string $type)
     {
         if (empty(self::$resizeStrategies[$type])) {
             $class = 'ResizeType' . '\\' . ucfirst($type);
+            if (!class_exists($class)) {
+                throw new Exception(
+                    "Configuration error: resize type '{$type}' dosn't exist.",
+                    Exception::CONFIGURATION
+                );
+            }
             self::$resizeStrategies[$type] = new $class;
         }
         $this->resizeStrategy = self::$resizeStrategies[$type];
-    }
-
-    /**
-     * Set real size of thumbnail
-     *
-     * @param MavikThumbInfo $info
-     * @param type $ratio
-     */
-    protected function setThumbRealSize(MavikThumbInfo $info, $ratio)
-    {
-        if ($info->thumbnail->height * $ratio > $info->original->height) {
-            $ratio = $info->original->height / $info->thumbnail->height;
-        }
-        if ($info->thumbnail->width * $ratio > $info->original->width) {
-            $ratio = $info->original->width / $info->thumbnail->width;
-        }
-        $info->thumbnail->realWidth = floor($info->thumbnail->width * $ratio);
-        $info->thumbnail->realHeight = floor($info->thumbnail->height * $ratio);
-
-        foreach ($this->params['ratios'] as $ratio) {
-            $info->thumbnails[$ratio] = clone $info->thumbnail;
-            $info->thumbnails[$ratio]->realWidth *= $ratio;
-            $info->thumbnails[$ratio]->realHeight *= $ratio;
-        }
-    }
-
-    /**
-     * Set path and url of thumbnail
-     *
-     * @param MavikThumbInfo $info
-     * @param bolean $isLess
-     */
-    protected function setThumbPath(MavikThumbInfo $info, $isLess)
-    {
-        if (!$isLess) {
-            $info->thumbnail->url = $info->original->url;
-            return;
-        }
-
-        $suffix = "-{$this->params['resizeType']}-{$info->thumbnail->realWidth}x{$info->thumbnail->realHeight}";
-
-        $info->thumbnail->path = $this->getSafeName($info->original->path, $this->params['thumbDir'], $suffix, $info->original->isLocal);
-        $info->thumbnail->url = $this->pathToUrl($info->thumbnail->path);
-        $info->thumbnail->isLocal = true;
-
-        foreach ($info->thumbnails as $ratio => &$thumbnail) {
-            $dir = $this->params['thumbDir'];
-            if ($ratio != 1) {
-                $dir .= "/@{$ratio}";
-            }
-            $thumbnail->path = $this->getSafeName($info->original->path, $dir, $suffix, $info->original->isLocal);
-            $thumbnail->url = $this->pathToUrl($thumbnail->path);
-            $thumbnail->isLocal = true;
-        }
-    }
-
-
-    /**
-     * Does thumbnail exist and is it actual?
-     *
-     * @param MavikThumbInfo $info
-     * @return boolean
-     */
-    protected function thumbExists(MavikThumbInfo $info)
-    {
-        if (!$info->thumbnail->path) {
-            return false;
-        }
-
-        $originalChangeTime = $this->getOriginalChangeTime($info);
-        foreach ($info->thumbnails as $thumbnail) {
-            if(
-                !JFile::exists($thumbnail->path) ||
-                $originalChangeTime > filectime($thumbnail->path)
-            ) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * @param MavikThumbInfo $info
-     * @return int timestamp
-     */
-    protected function getOriginalChangeTime(MavikThumbInfo $info)
-    {
-        if ($info->original->isLocal || $this->params['copyRemote']) {
-            $timestamp = filectime($info->original->path);
-        } else {
-            $header = get_headers($info->original->url, 1);
-            $timestamp = 0;
-            if ($header && strstr($header[0], '200') !== false && !empty($header['Last-Modified'])) {
-                try {
-                    $changeTime = new \DateTime($header['Last-Modified']);
-                    $timestamp = $changeTime->getTimestamp();
-                } catch (Exception $e) {}
-            }
-        }
-        return (int) $timestamp;
-    }
-
-    /**
-     * Image is reduced, increased or not changed
-     *
-     * @param MavikThumbImageInfo $original
-     * @return int
-     */
-    private function isResized(MavikThumbImageInfo $original, $width, $heigh)
-    {
-        if ($width && $width < $original->width || $heigh && $heigh < $original->height) {
-            return 1;
-        } elseif (($original->width == $width || !$width) && ($original->height == $heigh || !$heigh)) {
-            return 0;
-        } else  {
-            return -1;
-        }
-    }
-
-    /**
-     * Use default size
-     *
-     * @param MavikThumbImageInfo $original
-     * @param int $width
-     * @param int $heigh
-     * @return boolean
-     */
-    private function useDefaultSize(MavikThumbImageInfo $original, $width, $heigh)
-    {
-        if (empty($this->params['defaultSize'])) {
-            return false;
-        } elseif ($this->params['defaultSize'] == 'all') {
-            return true;
-        } elseif ($this->params['defaultSize'] == 'not_resized') {
-            return $this->isResized($original, $width, $heigh) == 0;
-        }
     }
 
     /**
@@ -314,7 +194,7 @@ class ThumbGenerator {
      *
      * @return int
      */
-    protected function getMemoryLimit()
+    private function getMemoryLimit()
     {
         $sizeStr = ini_get('memory_limit');
         switch (substr ($sizeStr, -1))
@@ -327,38 +207,19 @@ class ThumbGenerator {
     }
 
     /**
-     * @param MavikThumbInfo $info
-     * @throws Exception
+     * @param MavikThumbInfo $image
+     * @throws Mavik\Thumbnails\Exception
      */
-    protected function testAllocatedMemory(MavikThumbInfo $info)
+    protected function testAllocatedMemory(ImageWithThumbnails $image)
     {
         $allocatedMemory = $this->getMemoryLimit() - memory_get_usage(true);
-        $neededMemory = $info->original->width * $info->original->height * 4;
-        foreach ($info->thumbnails as $thumbnail) {
-            $neededMemory += $thumbnail->width * $thumbnail->height * 4;
+        $neededMemory = $image->original->width * $image->original->height * self::MAX_BYTES_BY_PIXEL;
+        foreach ($image->thumbnails as $thumbnail) {
+            $neededMemory += $thumbnail->width * $thumbnail->height * self::MAX_BYTES_BY_PIXEL;
         }
         $neededMemory *= 1.25; // +25%
-        if ($neededMemory >= $allocatedMemory) {
-            throw new Exception(JText::_('Not enough memory'), self::ERROR_NOT_ENOUGH_MEMORY);
+        if ($neededMemory > $allocatedMemory) {
+            throw new Exception(JText::_('Not enough memory'), Exception::ERROR_NOT_ENOUGH_MEMORY);
         }
-    }
-
-    /**
-     * @param string $url
-     * @return string
-     */
-    protected function fullUrl($url)
-    {
-        $uri = new \Joomla\Uri\Uri($url);
-        if (!$uri->getHost()) {
-            $path = $uri->getPath();
-            $query = $uri->getQuery();
-            $basePath = JUri::base(true);
-            if ($basePath && strpos($path, $basePath) === 0) {
-                $path = substr($path, strlen($basePath) + 1);
-            }
-            return JUri::base() . $path . ($query ? "?{$query}" : '');
-        }
-        return $url;
     }
 }

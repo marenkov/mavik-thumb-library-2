@@ -39,13 +39,21 @@ class Local implements FileSystem
     protected function verifyParams(): void
     {
         if (empty($this->params['webRootPath'])) {
-            throw new ConfigurationException('Parameter webRootPath is not setted.');
+            throw new ConfigurationException(
+                'Parameter webRootPath is not setted.',
+                FileSystemException::CONFIGURATION);
         }
         if (!is_string($this->params['webRootPath'])) {
-            throw new ConfigurationException('Parameter webRootPath must be string.');
+            throw new ConfigurationException(
+                'Parameter webRootPath must be string.',
+                FileSystemException::CONFIGURATION
+            );
         }
         if (!file_exists($this->params['webRootPath']) || !is_dir($this->params['webRootPath'])) {
-            throw new ConfigurationException('Parameter webRootPath is wrong. "' . $this->params['webRootPath'] . '" is not directory.');
+            throw new ConfigurationException(
+                'Parameter webRootPath is wrong. "' . $this->params['webRootPath'] . '" is not directory.',
+                FileSystemException::CONFIGURATION
+            );
         }
     }
 
@@ -88,7 +96,10 @@ class Local implements FileSystem
     public function makeDirectory(string $path, int $mode = null): void
     {
          if (!mkdir($path, $mode, true)) {
-             throw new FileSystemException(sprintf('Can\'t create directory "%s" with mode %o', $path, $mode));
+            throw new FileSystemException(
+                sprintf('Can\'t create directory "%s" with mode %o', $path, $mode),
+                Exception::DIRECTORY_CREATION
+            );
          }
     }
 
@@ -101,10 +112,13 @@ class Local implements FileSystem
     public function write(string $path, string $content, int $mode = null): void
     {
         if (file_put_contents($path, $content, LOCK_EX) === false) {
-            throw new FileSystemException("Cannot write to file '{$path}'.");
+            throw new FileSystemException("Cannot write to file '{$path}'.", Exception::FILE_CREATION);
         }
         if ($mode && !chmod($path, $mode)) {
-            throw new FileSystemException(sprintf('Cannot set mode %o for file "%s".', $mode, $path));
+            throw new FileSystemException(sprintf(
+                'Cannot set mode %o for file "%s".', $mode, $path),
+                FileSystemException::FILE_SET_MODE
+            );
         }
     }
     
