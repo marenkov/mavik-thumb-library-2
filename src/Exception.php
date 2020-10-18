@@ -4,6 +4,7 @@ namespace Mavik\Thumbnails;
 
 class Exception extends \Exception {
     /** Codes of errors */
+    const OTHER                     = 0;
     const CONFIGURATION             =1;
     const DIRECTORY_CREATION        = 2;
     const FILE_CREATION              = 3;
