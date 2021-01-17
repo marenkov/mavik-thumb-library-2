@@ -62,10 +62,10 @@ class ThumbGenerator {
     /** @var array */
     protected $params;
 
-    /** @var ResizeType[] All used Strategies of resizing */
+    /** @var ResizeStrategy[] All used Strategies of resizing */
     protected static $resizeStrategies;
 
-    /** @var ResizeType Current Strategy of resizing */
+    /** @var ResizeStrategy Current Strategy of resizing */
     protected $resizeStrategy;
 
     /** @var GraphicLibrary */
