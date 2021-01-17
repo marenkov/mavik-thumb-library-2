@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Creates objects ThumbInfo
+ * Creates objects ImageWithThumbnails
  *
  * @package Mavik Thumbnails
  * @author Vitalii Marenkov <admin@mavik.com.ua>
@@ -17,18 +17,18 @@ use Mavik\Thumbnails\DataType\ImageWithThumbnails;
 class ImageInfoBuilder {
 
     /** @var array */
-    protected $params;
+    private $params;
 
     /** @var FileSystem */
-    protected $fileSystem;
+    private $fileSystem;
     
-    /** @var ImageFileInfo */
-    protected $imageFileInfo;
+    /** @var ImageFileInformator */
+    private $imageFileInformator;
 
-    public function __construct(array $params, FileSystem $fileSystem) {
-        $this->params        = $params;
-        $this->fileSystem    = $fileSystem;
-        $this->imageFileInfo = new ImageFileInfo($fileSystem, $params);
+    public function __construct(array $params, FileSystem $fileSystem,  ImageFileInformator $imageFileInformator) {
+        $this->params              = $params;
+        $this->fileSystem          = $fileSystem;
+        $this->imageFileInformator = $imageFileInformator;
     }
 
     /**
@@ -38,23 +38,23 @@ class ImageInfoBuilder {
      * @param float[] $ratios For every value will be created particular thumbnail
      * @return ImageWithThumbnails
      */
-    public function make(string $originalSrc, int $thumbWidth, int $thumbHeight, array $ratios = [1]): ImageWithThumbnails
+    public function build(string $originalSrc, int $thumbWidth, int $thumbHeight, array $ratios = [1]): ImageWithThumbnails
     {
-        $thumbInfo = new ImageWithThumbnails();
-        $thumbInfo->original = $this->makeOriginalImageInfo($originalSrc);
+        $imgWithThumb = new ImageWithThumbnails();
+        $imgWithThumb->original = $this->makeOriginalImageInfo($originalSrc);
         foreach ($ratios as $ratio) {
-            $thumbInfo = new Image();
-            
-            $thumbInfo->thumbnails[] = $thumbInfo;            
+            $thumb = $this->makeThumbInfo($imgWithThumb->original, $thumbWidth, $thumbHeight, $ratio);
+            if ($thumb) {
+                $imgWithThumb->thumbnails[] = $thumb;
+            }
         }
-
-        return $thumbInfo;
+        return $imgWithThumb;
     }
 
-    protected function makeOriginalImageInfo(string $src): Image
+    private function makeOriginalImageInfo(string $src): Image
     {      
-        if(!empty($path = $this->isPath($src))) {
-            $originalImageInfo = $this->makeOriginalImageInfoFromPath($src);
+        if(!empty($path = $this->realPath($src))) {
+            $originalImageInfo = $this->makeOriginalImageInfoFromPath($path);
         } else {
             $originalImageInfo = $this->makeOriginalImageInfoFromUrl($src);
         }
@@ -64,12 +64,12 @@ class ImageInfoBuilder {
             'type'      => $originalImageInfo->type,
             'height'    => $originalImageInfo->height,
             'width'     => $originalImageInfo->width,            
-        ) = $this->imageFileInfo->imageInfo($originalImageInfo);
+        ) = $this->imageFileInformator->imageInfo($originalImageInfo);
         
         return $originalImageInfo;
     }
 
-    protected function makeOriginalImageInfoFromPath(string $path): Image
+    private function makeOriginalImageInfoFromPath(string $path): Image
     {
         $imageInfo = new Image();
         $imageInfo->isLocal = true;
@@ -78,27 +78,40 @@ class ImageInfoBuilder {
         return $imageInfo;
     }
     
-    protected function makeOriginalImageInfoFromUrl(string $url): Image
+    private function makeOriginalImageInfoFromUrl(string $url): Image
     {
         $imageInfo = new Image();
         $imageInfo->isLocal = $this->isUrlLocal($url);
         if($imageInfo->isLocal) {
-            // Local image
-            $parsedUrl = parse_url($url);
-            $imageInfo->url = $parsedUrl['path'] . ($parsedUrl['query'] ? "?{$parsedUrl['query']}" : '');
-            $imageInfo->path = $this->urlToPath($url);
+            return $this->makeOriginalImageInfoFromLocalUrl($url);
         } else {
-            // Remote image
-            if($this->params['copyRemote'] && $this->params['remoteDir'] ) {
-                $imageInfo->path = $this->copyRemoteFile($src);
-                $imageInfo->url = $this->fileSystem->pathToUrl($imageInfo->path);
-            } else {
-                // For remote image path is url
-                $imageInfo->url = str_replace(' ', '+', $src);
-                $imageInfo->path = $imageInfo->url;
-            }
+            return $this->makeOriginalImageInfoFromRemoteUrl($url);
         }
-        return $imageInfo;
+    }
+    
+    private function makeOriginalImageInfoFromLocalUrl(string $url): Image
+    {
+        $image = new Image();
+        $image->isLocal = true;
+        $parsedUrl = parse_url($url);
+        $image->url = $parsedUrl['path'] . (empty($parsedUrl['query']) ? '' : "?{$parsedUrl['query']}");
+        $image->path = $this->fileSystem->urlToPath($url);
+        return $image;        
+    }
+    
+    private function makeOriginalImageInfoFromRemoteUrl(string $url): Image
+    {
+        $image = new Image();
+        $image->isLocal = false;
+        if($this->params['copyRemote'] && $this->params['remoteDir'] ) {
+            $image->path = $this->copyRemoteFile($src);
+            $image->url = $this->fileSystem->pathToUrl($image->path);
+        } else {
+            // For remote image path is url
+            $image->url = str_replace(' ', '+', $src);
+            $image->path = $image->url;
+        }
+        return $image;
     }
 
     /**
@@ -107,9 +120,8 @@ class ImageInfoBuilder {
      * @param string $src URL or path
      * @return string|null
      */
-    protected function isPath(string $src): ?string
+    private function realPath(string $src): ?string
     {
-        // Don't touch file system is it is clear that it is URL
         if (
             strpos($src, 'https://') === 0 ||
             strpos($src, 'http://') === 0
@@ -120,18 +132,21 @@ class ImageInfoBuilder {
     }
 
     /**
-     * Is URL local?
+     * Can be image processed as local?
+     * 
+     * Returns true if $url is a simle link to a local image.
+     * Example: http://test,com/images/img.jpg
      *
      * @param string $url
      * @return boolean
      */
-    protected function isUrlLocal(string $url): bool
+    private function isUrlLocal(string $url): bool
     {
         $siteUri = parse_url($this->params['baseUrl']);
         $imgUri = parse_url($url);
 
         // If url has query it must be processed as remote
-        if ($imgUri['query']) {
+        if (!empty($imgUri['query'])) {
             return false;
         }
 
@@ -144,10 +159,12 @@ class ImageInfoBuilder {
 
     /**
      * Copy remote file to local directory
+     * 
+     * @todo Реализовать метод getSafeName
      *
      * @param string $src
      */
-    protected function copyRemoteFile($src)
+    private function copyRemoteFile(string $src): string
     {
         $localFile = $this->getSafeName($src, $this->params['remoteDir'], '', false);
         if (!file_exists($localFile)) {
@@ -157,64 +174,5 @@ class ImageInfoBuilder {
             unset($buffer);
         }
         return $localFile;
-    }
-
-    /**
-     * Get safe name
-     *
-     * @param string $path Path to file
-     * @param string $dir Directory for result file
-     * @param string $suffix Suffix for name of file (example size for thumbnail)
-     * @param string $secondExt New extension
-     * @return string
-     */
-    protected function getSafeName($path, $dir, $suffix = '', $isLocal = true, $secondExt = null)
-    {
-        if(!$isLocal) {
-            $uri = JURI::getInstance($path);
-            $query = $uri->getQuery();
-            $queryCode = sha1($query);
-            $path = $uri->getHost().$uri->getPath() . ($queryCode ? "_{$queryCode}" : '');
-        }
-
-        // Absolute path to relative
-        if(strpos($path, JPATH_SITE) === 0) $path = substr($path, strlen(JPATH_SITE)+1);
-
-        $lang = JFactory::getLanguage();
-
-        if(!$this->params['subDirs']) {
-            // Without subdirs
-            $name = str_replace(array('/','\\'), '-', $path);
-            $ext = JFile::getExt($name);
-            $name = JFile::stripExt($name).$suffix.($ext ? '.'.$ext : '').($secondExt ? '.'.$secondExt : '');
-            $path = JPATH_ROOT."/{$dir}/{$name}";
-        } else {
-            // With subdirs
-            $name = JFile::getName($path);
-            $ext = JFile::getExt($name);
-            $name = JFile::stripExt($name).$suffix.($ext ? '.'.$ext : '').($secondExt ? '.'.$secondExt : '');
-            $path = JPATH_BASE."/{$dir}/{$path}";
-            $path = str_replace('\\', '/', $path);
-            $path = substr($path, 0, strrpos($path, '/'));
-            if(!JFolder::exists($path)) {
-                JFolder::create($path);
-                $indexFile = '<html><body bgcolor="#FFFFFF"></body></html>';
-                JFile::write($path.'/index.html', $indexFile);
-            }
-            $path = $path . '/' . $name;
-        }
-
-        return $path;
-    }
-    
-    protected function getImageFileInfo(Image $imageInfo): array
-    {
-        $useInfoFile = !$imageInfo->isLocal && empty($this->params['copyRemote']) && !empty($this->params['remoteDir']);
-        if($useInfoFile) {
-            $infoFilePath = $this->getSafeName($info->url, $this->params['remoteDir'], '', false, 'info');
-            if($this->fileSystem->isFile($infoFilePath)) {
-                $imageSize = unserialize($this->fileSystem->read($infoFilePath));
-            }
-        }        
     }
 }

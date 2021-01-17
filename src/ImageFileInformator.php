@@ -16,11 +16,11 @@ use Mavik\Thumbnails\DataType\Image;
 /**
  * Get information about image file
  */
-class ImageFileInfo
+class ImageFileInformator
 {
     
     /** @var Filesystem */
-    protected $fileSystem;
+    private $fileSystem;
 
     public function __construct(Filesystem $fileSystem)
     {
@@ -68,7 +68,7 @@ class ImageFileInfo
      * @param string $url
      * @return array
      */
-    protected function imageInfoFromUrl(string $url): array
+    private function imageInfoFromUrl(string $url): array
     {
         $context = stream_context_create([
             'http' => [
@@ -92,7 +92,7 @@ class ImageFileInfo
         ];
     }
     
-    protected function fileSizeFromHttpHeaders(array $httpHeaders = null): ?int
+    private function fileSizeFromHttpHeaders(array $httpHeaders = null): ?int
     {        
         if (!isset($httpHeaders['response_code'])) {
             return null;
@@ -115,7 +115,7 @@ class ImageFileInfo
         return null;
     }
 
-    protected function parseHttpHeaders(array $httpHeaders = null): array
+    private function parseHttpHeaders(array $httpHeaders = null): array
     {
         $result = [];
         if (!is_array($httpHeaders)) {
@@ -135,7 +135,7 @@ class ImageFileInfo
         return $result;
     }
     
-    protected function imageSizeFromFile(string $path)
+    private function imageSizeFromFile(string $path)
     {
         $imagedata = $this->fileSystem->read($path, 65536);
         return getimagesizefromstring($imagedata);

@@ -38,6 +38,7 @@ class ThumbGenerator {
     
     const PARAMS_DEFAULT = [
         'baseUrl'          => '',
+        'webDir'           => '',
         'thumbDir'         => 'images/thumbnails',
         'subDirs'          => true,
         'copyRemote'       => false,
@@ -90,7 +91,11 @@ class ThumbGenerator {
             $this->fileSystem = new Filesystem\Local($params['fileSystemParams']);
         }
 
-        $this->thumbInfoBuilder = new ImageInfoBuilder($this->params, $this->fileSystem);
+        $this->thumbInfoBuilder = new ImageInfoBuilder(
+            $this->params,
+            $this->fileSystem,
+            new ImageFileInformator($fileSystem, $params)
+        );
     }
 
     /**
@@ -128,7 +133,7 @@ class ThumbGenerator {
      */
     public function getThumbnails(string $src, int $width = 0, int $height = 0, int $ratios = [1]): ImageWithThumbnails
     {
-        $imgWithThumb = $this->thumbInfoBuilder->make($src, $width, $height, $ratios);
+        $imgWithThumb = $this->thumbInfoBuilder->build($src, $width, $height, $ratios);
         if (!$imgWithThumb->allThumbnailsExist()) {
             $this->testAllocatedMemory($imgWithThumb);
             list($x, $y, $widht, $height) = $this->resizeStrategy->getArea($imgWithThumb);

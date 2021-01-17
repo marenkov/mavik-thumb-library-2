@@ -3,37 +3,24 @@ namespace Mavik\Thumbnails;
 
 use PHPUnit\Framework\TestCase;
 use Mavik\Thumbnails\DataType\Image;
+use Mavik\Thumbnails\Tests\HttpServer;
 
 class ImageFileInfoTest extends TestCase
 {
     /**
-     * @var ImageFileInfo
+     * @var ImageFileInformator
      */
     static protected $imageFileInfo;
     
     public static function setUpBeforeClass(): void
     {
         $webRoot = __DIR__ . '/../resources/images';
-        self::startHttpServer($webRoot);
-        sleep(1);
-        self::$imageFileInfo = new ImageFileInfo(new Filesystem\Local([
+        HttpServer::start($webRoot);
+        self::$imageFileInfo = new ImageFileInformator(new Filesystem\Local([
             'webRootPath' => $webRoot,
         ]));
     }
     
-    protected static function startHttpServer(string $webRoot): void
-    {
-        shell_exec("php -S localhost:8888 -t {$webRoot} > /dev/null 2>&1 &");
-        $count = 0;
-        do {
-            usleep(10000);
-            $content = @file_get_contents('http://localhost:8888');           
-        } while (empty($content) && $count++ < 50);
-        if (empty($content)) {
-            throw new \Exception('HTTP server cannot be started');
-        }
-    }
-
     /**
      * @covers Mavik\Thumbnails\ImageFileInfo::imageInfo
      * @dataProvider correctImagesProvider
