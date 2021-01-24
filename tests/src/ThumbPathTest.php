@@ -15,12 +15,12 @@ class ThumbPathTest extends TestCase
     {
         self::$pathWithSubDirs = new ThumbPath([
             'webDir'   => '/var/www/test.com',
-            'thumbDir' => 'images/thmbnails',
+            'thumbDir' => 'images/thumbnails',
             'subDirs'  => true,
         ]);
         self::$pathWithoutSubDirs = new ThumbPath([
             'webDir'   => '/var/www/test.com',
-            'thumbDir' => 'images/thmbnails',
+            'thumbDir' => 'images/thumbnails',
             'subDirs'  => false,
         ]);
     }
@@ -53,22 +53,21 @@ class ThumbPathTest extends TestCase
     {
         return [[
             'images/test.jpg', false, '-001', '', [
-                'withoutSubDirs' => '/var/www/test.com/images/thmbnails/images-test-001.jpg',
-                'withSubDirs' => '/var/www/test.com/images/thmbnails/images/test-001.jpg',
+                'withoutSubDirs' => '/var/www/test.com/images/thumbnails/images-test-001.jpg',
+                'withSubDirs' => '/var/www/test.com/images/thumbnails/images/test-001.jpg',
             ]], [
             'images/articles/test.jpg', false, '-002', '', [
-                'withoutSubDirs' => '/var/www/test.com/images/thmbnails/images-articles-test-002.jpg',
-                'withSubDirs' => '/var/www/test.com/images/thmbnails/images/articles/test-002.jpg',
+                'withoutSubDirs' => '/var/www/test.com/images/thumbnails/images-articles-test-002.jpg',
+                'withSubDirs' => '/var/www/test.com/images/thumbnails/images/articles/test-002.jpg',
             ]], [
             'images/test demo.jpg', false, '-003', '', [
-                'withoutSubDirs' => '/var/www/test.com/images/thmbnails/images-test demo-003.jpg',
-                'withSubDirs' => '/var/www/test.com/images/thmbnails/images/test demo-003.jpg',
+                'withoutSubDirs' => '/var/www/test.com/images/thumbnails/images-test demo-003.jpg',
+                'withSubDirs' => '/var/www/test.com/images/thumbnails/images/test demo-003.jpg',
             ]], [
             'images/../articles/test.jpg', false, '-004', '', [
-                'withoutSubDirs' => '/var/www/test.com/images/thmbnails/images-..-articles-test-004.jpg',
-                'withSubDirs' => '/var/www/test.com/images/thmbnails/articles/test-004.jpg',
-            ]],
-            
+                'withoutSubDirs' => '/var/www/test.com/images/thumbnails/images-..-articles-test-004.jpg',
+                'withSubDirs' => '/var/www/test.com/images/thumbnails/articles/test-004.jpg',
+            ]],            
         ];
     }
 }
