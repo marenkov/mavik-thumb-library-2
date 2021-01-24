@@ -58,7 +58,7 @@ abstract class AbstractStrategy
      */
     public function area(Image $originalImage, int $thumbWidth, int $thumbHeight): array
     {
-        return array(0, 0, $originalImage->width, $originalImage->height);
+        return array('x' =>0, 'y' => 0, 'width' => $originalImage->width, 'height' => $originalImage->height);
     }
 
     /**
